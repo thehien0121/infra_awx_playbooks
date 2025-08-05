@@ -1,0 +1,10 @@
+---
+- name: Check uptime on remote host
+  hosts: all
+  tasks:
+    - name: Run uptime
+      command: uptime
+      register: uptime_output
+    - name: Show uptime output
+      debug:
+        var: uptime_output.stdout
