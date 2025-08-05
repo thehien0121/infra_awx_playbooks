@@ -1,0 +1,11 @@
+---
+- name: Check Operating System
+  hosts: all
+  gather_facts: yes
+  tasks:
+    - name: Display OS information
+      ansible.builtin.debug:
+        var: ansible_facts['os_family']
+    - name: Display full system facts
+      ansible.builtin.debug:
+        var: ansible_facts
