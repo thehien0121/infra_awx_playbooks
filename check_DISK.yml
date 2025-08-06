@@ -1,0 +1,10 @@
+---
+- hosts: all
+  gather_facts: no
+  tasks:
+    - name: Check disk usage
+      ansible.builtin.command: df -h
+      register: disk_output
+    - name: Print disk info
+      ansible.builtin.debug:
+        var: disk_output.stdout_lines
