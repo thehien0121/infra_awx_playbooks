@@ -1,0 +1,9 @@
+---
+- hosts: all
+  tasks:
+    - name: List files in root directory
+      shell: ls /
+      register: root_files
+    - name: Show files in root directory
+      debug:
+        var: root_files.stdout
