@@ -1,0 +1,12 @@
+---
+- name: List Accepted SSH IPs
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Get accepted IP addresses from /var/log/secure
+      ansible.builtin.shell: "grep 'Accepted' /var/log/secure | awk '{print $11}' | sort | uniq"
+      register: accepted_ips
+      changed_when: false
+    - name: Display IP list
+      debug:
+        var: accepted_ips.stdout_lines
