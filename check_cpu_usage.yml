@@ -1,0 +1,27 @@
+---
+- name: Check CPU usage and rank hosts
+  hosts: all
+  gather_facts: yes
+  tasks:
+    - name: Get CPU usage
+      shell: top -bn1 | grep "Cpu(s)" | \
+        awk '{print $2 + $4}'
+      register: cpu_usage
+      changed_when: false
+    - name: Set host CPU fact
+      set_fact:
+        host_cpu_usage: "{{ cpu_usage.stdout | float }}"
+    - name: Add host info to results
+      set_fact:
+        cpu_results: "{{ cpu_results|default([]) + [{'host': inventory_hostname, 'cpu': host_cpu_usage}] }}"
+    - name: Show ranked CPU usage (only once)
+      run_once: true
+      delegate_to: localhost
+      vars:
+        sorted_results: "{{ groups['all'] | map('extract', hostvars, 'host_cpu_usage') | zip(groups['all']) | sort(attribute=0, reverse=true) }}"
+      debug:
+        msg: |
+          CPU usage ranking (highest to lowest):
+          {% for cpu, host in sorted_results %}
+          - {{ host }}: {{ cpu }} %
+          {% endfor %}
