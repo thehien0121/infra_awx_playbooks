@@ -1,0 +1,22 @@
+---
+- name: Kiểm tra CPU usage trên các host
+  hosts: all
+  gather_facts: yes
+  tasks:
+    - name: Lấy thông tin CPU
+      ansible.builtin.shell: |
+        mpstat | awk '$12 ~ /[0-9.]+/ {print 100 - $12}'
+      register: cpu_usage
+      ignore_errors: yes
+
+    - name: Hiển thị kết quả CPU usage
+      ansible.builtin.debug:
+        msg: "CPU Usage: {{cpu_usage.stdout}}% trên host {{inventory_hostname}}"
+
+    - name: Xếp hạng các host theo CPU usage
+      ansible.builtin.set_fact:
+        custom_report: "{{ custom_report|default([]) + [{ 'host': inventory_hostname, 'cpu_usage': cpu_usage.stdout | float }] }}"
+
+    - name: Hiển thị danh sách xếp hạng CPU usage
+      ansible.builtin.debug:
+        msg: "Ranking: {{ custom_report | sort(attribute='cpu_usage', reverse=True) }}"
