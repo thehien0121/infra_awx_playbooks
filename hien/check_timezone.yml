@@ -24,3 +24,7 @@
     - name: Show timezone
       debug:
         msg: "Timezone is: {{ timezone }}"
+
+    - name: Check if timezone is Asia/Ho_Chi_Minh
+      debug:
+        msg: "Is system timezone Asia/Ho_Chi_Minh? {{ 'Yes' if timezone == 'Asia/Ho_Chi_Minh' else 'No. Current: ' + timezone }}"
