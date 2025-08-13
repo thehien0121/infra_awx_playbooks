@@ -3,6 +3,28 @@
   hosts: all
   gather_facts: yes
   tasks:
+    - name: Kiểm tra lệnh mpstat
+      ansible.builtin.command: which mpstat
+      register: mpstat_check
+      ignore_errors: yes
+
+    - name: Cài đặt sysstat nếu thiếu mpstat (CentOS/RHEL)
+      ansible.builtin.yum:
+        name: sysstat
+        state: present
+      when:
+        - mpstat_check.rc != 0
+        - ansible_os_family == "RedHat"
+
+    - name: Cài đặt sysstat nếu thiếu mpstat (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name: sysstat
+        state: present
+        update_cache: yes
+      when:
+        - mpstat_check.rc != 0
+        - ansible_os_family == "Debian"
+
     - name: Lấy thông tin CPU
       ansible.builtin.shell: |
         mpstat | awk '$12 ~ /[0-9.]+/ {print 100 - $12}'
