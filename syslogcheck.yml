@@ -1,0 +1,25 @@
+---
+- name: Check system logs for errors and warnings
+  hosts: all
+  become: yes
+  gather_facts: false
+  tasks:
+    - name: Collect syslog lines with error or warning
+      shell: |
+        grep -iE 'error|warning' /var/log/syslog || true
+        grep -iE 'error|warning' /var/log/messages || true
+      register: log_result
+      ignore_errors: yes
+
+    - name: Show detected log issues
+      debug:
+        msg: "{{ log_result.stdout }}"
+
+    - name: Summarize host log status
+      set_fact:
+        syslog_status: >-
+          {% if log_result.stdout %}PROBLEM DETECTED: {{ log_result.stdout | trim }}{% else %}OK: No error/warning detected in logs{% endif %}
+
+    - name: Report final status per host
+      debug:
+        msg: "{{ syslog_status }}"
