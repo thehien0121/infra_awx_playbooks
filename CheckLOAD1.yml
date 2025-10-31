@@ -1,0 +1,12 @@
+---
+- name: Check Linux Load Average
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Get Load Average
+      shell: "cat /proc/loadavg"
+      register: loadavg_output
+
+    - name: Show Load Average
+      debug:
+        msg: "{{ inventory_hostname }}: {{ loadavg_output.stdout }}"
