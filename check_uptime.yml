@@ -8,3 +8,7 @@
     - name: Show uptime output
       debug:
         var: uptime_output.stdout
+    - name: Ensure success
+      assert:
+        that:
+          - uptime_output.rc == 0
