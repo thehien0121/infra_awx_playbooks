@@ -7,6 +7,12 @@
       shell: "cat /proc/loadavg"
       register: loadavg_output
 
-    - name: Show Load Average
+    - name: Set Load Average Values
+      set_fact:
+        load1: "{{ loadavg_output.stdout.split(' ')[0] }}"
+        load5: "{{ loadavg_output.stdout.split(' ')[1] }}"
+        load15: "{{ loadavg_output.stdout.split(' ')[2] }}"
+
+    - name: Show Load Average 1, 5, 15
       debug:
-        msg: "{{ inventory_hostname }}: {{ loadavg_output.stdout }}"
+        msg: "{{ inventory_hostname }} --> 1min: {{ load1 }}, 5min: {{ load5 }}, 15min: {{ load15 }}"
