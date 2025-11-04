@@ -1,9 +1,6 @@
 ---
 - name: Check Error Logs on CentOS/Ubuntu
   hosts: all
-  become: yes
-  become_method: sudo
-  become_user: root
   gather_facts: yes
 
   vars:
