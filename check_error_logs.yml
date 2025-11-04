@@ -126,17 +126,10 @@
 
     - name: Read error logs from last N lines (RedHat family)
       shell: |
-<<<<<<< HEAD
         if [ {{ error_lines_count | int }} -gt 0 ]; then
           tail -n {{ error_lines_count | int }} {{ log_file }} | grep -iE "{{ error_keywords | join('|') }}"
         else
           tail -n 1000 {{ log_file }} | grep -iE "{{ error_keywords | join('|') }}"
-=======
-  	if [ {{ error_lines_count | int }} -gt 0 ]; then
-    	  tail -n {{ error_lines_count | int }} {{ log_file }} | grep -iE "{{ error_keywords | join('|') }}"
-        else
-      	  tail -n 1000 {{ log_file }} | grep -iE "{{ error_keywords | join('|') }}"
->>>>>>> cab07fb192dee4ba0a6083706a75da5e1c146320
         fi
       register: error_logs
       when: is_redhat_family
@@ -145,17 +138,10 @@
 
     - name: Read error logs from last N lines (Debian family)
       shell: |
-<<<<<<< HEAD
         if [ {{ error_lines_count | int }} -gt 0 ]; then
           tail -n {{ error_lines_count | int }} {{ log_file }} | grep -iE "{{ error_keywords | join('|') }}"
         else
           tail -n 1000 {{ log_file }} | grep -iE "{{ error_keywords | join('|') }}"
-=======
-  	if [ {{ error_lines_count | int }} -gt 0 ]; then
-    	  tail -n {{ error_lines_count | int }} {{ log_file }} | grep -iE "{{ error_keywords | join('|') }}"
-        else
-      	  tail -n 1000 {{ log_file }} | grep -iE "{{ error_keywords | join('|') }}"
->>>>>>> cab07fb192dee4ba0a6083706a75da5e1c146320
         fi
       register: error_logs
       when: is_debian_family
