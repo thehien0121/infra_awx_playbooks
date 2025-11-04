@@ -2,6 +2,8 @@
 - name: Check Error Logs on CentOS/Ubuntu
   hosts: all
   become: yes
+  become_method: sudo
+  become_user: root
   gather_facts: yes
 
   vars:
@@ -36,6 +38,9 @@
     - name: Check if log file exists
       stat:
         path: "{{ log_file }}"
+      become: yes
+      become_method: sudo
+      become_user: root
       register: log_file_stat
 
     - name: Fail if log file does not exist
@@ -50,6 +55,9 @@
         else
           grep -iE "{{ error_keywords | join('|') }}" {{ log_file }}
         fi
+      become: yes
+      become_method: sudo
+      become_user: root
       register: error_logs
       when: 
         - log_file_stat.stat.exists
@@ -64,6 +72,9 @@
         else
           grep -iE "{{ error_keywords | join('|') }}" {{ log_file }}
         fi
+      become: yes
+      become_method: sudo
+      become_user: root
       register: error_logs
       when: 
         - log_file_stat.stat.exists
