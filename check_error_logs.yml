@@ -124,17 +124,24 @@
           - "OS Family: {{ os_family }}"
           - "Using log file: {{ log_file }}"
 
-    - name: Read error logs from last N lines (RedHat family)
+    - name: Read error logs from last N lines (Debian family)
+      become: yes
       shell: |
-        if [ {{ error_lines_count | int }} -gt 0 ]; then
-          tail -n {{ error_lines_count | int }} {{ log_file }} | grep -iE "{{ error_keywords | join('|') }}"
+        set -o pipefail
+        lines={{ error_lines_count | default(1000) | int }}
+        if [ $lines -gt 0 ]; then
+          tail -n $lines {{ log_file }} | tr -d '\r' | grep -iE "{{ error_keywords }}"
         else
-          tail -n 1000 {{ log_file }} | grep -iE "{{ error_keywords | join('|') }}"
+          tail -n 1000 {{ log_file }} | tr -d '\r' | grep -iE "{{ error_keywords }}"
         fi
       register: error_logs
-      when: is_redhat_family
+      when: is_debian_family
       changed_when: false
       failed_when: false
+      ignore_errors: yes
+
+    - debug:
+        var: error_logs.stdout_lines
 
     - name: Read error logs from last N lines (Debian family)
       shell: |
