@@ -20,20 +20,105 @@
       - EXCEPTION
 
   tasks:
-    - name: Detect OS and set log file path
+    - name: Detect OS by checking log files (fallback method)
+      shell: |
+        if [ -f /var/log/messages ]; then
+          echo "redhat"
+        elif [ -f /var/log/syslog ]; then
+          echo "debian"
+        else
+          echo "unknown"
+        fi
+      register: os_detect_by_log
+      changed_when: false
+      failed_when: false
+
+    - name: Try to detect OS by reading /etc/os-release (without sudo)
+      shell: |
+        if [ -f /etc/os-release ]; then
+          . /etc/os-release
+          echo "$ID"
+          echo "$VERSION_ID"
+          echo "$NAME"
+        elif [ -f /etc/redhat-release ]; then
+          cat /etc/redhat-release
+        elif [ -f /etc/lsb-release ]; then
+          . /etc/lsb-release
+          echo "$DISTRIB_ID"
+          echo "$DISTRIB_RELEASE"
+        else
+          echo ""
+        fi
+      register: os_detect
+      changed_when: false
+      failed_when: false
+
+    - name: Try to detect OS by reading /etc/os-release (with sudo)
+      shell: |
+        if [ -f /etc/os-release ]; then
+          . /etc/os-release
+          echo "$ID"
+          echo "$VERSION_ID"
+          echo "$NAME"
+        elif [ -f /etc/redhat-release ]; then
+          cat /etc/redhat-release
+        elif [ -f /etc/lsb-release ]; then
+          . /etc/lsb-release
+          echo "$DISTRIB_ID"
+          echo "$DISTRIB_RELEASE"
+        else
+          echo ""
+        fi
+      become: yes
+      become_method: sudo
+      register: os_detect_sudo
+      when: os_detect.stdout == "" or os_detect.stdout_lines | length == 0
+      changed_when: false
+      failed_when: false
+
+    - name: Initialize os_detect_sudo if not defined
       set_fact:
-        log_file: "{{ '/var/log/messages' if ansible_os_family == 'RedHat' else '/var/log/syslog' }}"
-        os_name: "{{ ansible_distribution }}"
-        os_version: "{{ ansible_distribution_version }}"
+        os_detect_sudo: {"stdout": "", "stdout_lines": []}
+      when: os_detect_sudo is not defined
+
+    - name: Set final OS detection result
+      set_fact:
+        os_detect_final: "{{ os_detect_sudo if (os_detect_sudo.stdout is defined and os_detect_sudo.stdout != '') else (os_detect if os_detect.stdout is defined else {'stdout': '', 'stdout_lines': []}) }}"
+
+    - name: Initialize OS variables from log files
+      set_fact:
+        os_id: "{{ os_detect_by_log.stdout | default('unknown') | lower }}"
+        os_version: "unknown"
+        os_name: "{{ 'CentOS/RHEL' if os_detect_by_log.stdout == 'redhat' else ('Ubuntu/Debian' if os_detect_by_log.stdout == 'debian' else 'Unknown') }}"
+
+    - name: Parse OS information from /etc/os-release (if available)
+      set_fact:
+        os_id: "{{ os_detect_final.stdout_lines[0] | default(os_id) | lower }}"
+        os_version: "{{ os_detect_final.stdout_lines[1] | default(os_version) }}"
+        os_name: "{{ os_detect_final.stdout_lines[2] | default(os_detect_final.stdout_lines[0] | default(os_name)) }}"
+      when: 
+        - os_detect_final.stdout is defined
+        - os_detect_final.stdout != ""
+        - os_detect_final.stdout_lines | length > 0
+
+    - name: Determine OS family
+      set_fact:
+        is_redhat_family: "{{ os_id in ['rhel', 'centos', 'rocky', 'almalinux', 'fedora', 'oracle', 'redhat'] or 'redhat' in (os_id | default('')) or os_detect_by_log.stdout | default('') == 'redhat' }}"
+        is_debian_family: "{{ os_id in ['ubuntu', 'debian'] or os_detect_by_log.stdout | default('') == 'debian' }}"
+
+    - name: Set log file path based on OS
+      set_fact:
+        log_file: "{{ '/var/log/messages' if is_redhat_family else '/var/log/syslog' }}"
+        os_family: "{{ 'RedHat' if is_redhat_family else ('Debian' if is_debian_family else 'Unknown') }}"
 
     - name: Display OS information
       debug:
         msg: 
-          - "Detected OS: {{ os_name }} {{ os_version }}"
+          - "Detected OS: {{ os_name }} ({{ os_id }}) {{ os_version }}"
+          - "OS Family: {{ os_family }}"
           - "Using log file: {{ log_file }}"
-          - "Current user: {{ ansible_user_id }}"
 
-    - name: Try to read error logs without sudo (CentOS)
+    - name: Try to read error logs without sudo (RedHat family)
       shell: |
         if [ {{ error_lines_count | int }} -gt 0 ]; then
           grep -iE "{{ error_keywords | join('|') }}" {{ log_file }} | tail -n {{ error_lines_count }}
@@ -41,11 +126,11 @@
           grep -iE "{{ error_keywords | join('|') }}" {{ log_file }}
         fi
       register: error_logs
-      when: ansible_os_family == "RedHat"
+      when: is_redhat_family
       changed_when: false
       failed_when: false
 
-    - name: Try to read error logs without sudo (Ubuntu)
+    - name: Try to read error logs without sudo (Debian family)
       shell: |
         if [ {{ error_lines_count | int }} -gt 0 ]; then
           grep -iE "{{ error_keywords | join('|') }}" {{ log_file }} | tail -n {{ error_lines_count }}
@@ -53,7 +138,7 @@
           grep -iE "{{ error_keywords | join('|') }}" {{ log_file }}
         fi
       register: error_logs
-      when: ansible_os_family == "Debian"
+      when: is_debian_family
       changed_when: false
       failed_when: false
 
@@ -67,7 +152,7 @@
         needs_sudo: false
       when: error_logs is not defined or needs_sudo is not defined
 
-    - name: Read error logs with sudo (CentOS)
+    - name: Read error logs with sudo (RedHat family)
       shell: |
         if [ {{ error_lines_count | int }} -gt 0 ]; then
           grep -iE "{{ error_keywords | join('|') }}" {{ log_file }} | tail -n {{ error_lines_count }}
@@ -78,12 +163,12 @@
       become_method: sudo
       register: error_logs
       when: 
-        - ansible_os_family == "RedHat"
+        - is_redhat_family
         - needs_sudo
       changed_when: false
       failed_when: false
 
-    - name: Read error logs with sudo (Ubuntu)
+    - name: Read error logs with sudo (Debian family)
       shell: |
         if [ {{ error_lines_count | int }} -gt 0 ]; then
           grep -iE "{{ error_keywords | join('|') }}" {{ log_file }} | tail -n {{ error_lines_count }}
@@ -94,7 +179,7 @@
       become_method: sudo
       register: error_logs
       when: 
-        - ansible_os_family == "Debian"
+        - is_debian_family
         - needs_sudo
       changed_when: false
       failed_when: false
