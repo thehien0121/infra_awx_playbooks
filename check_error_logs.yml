@@ -125,7 +125,6 @@
           - "Using log file: {{ log_file }}"
 
     - name: Read error logs from last N lines (Debian family)
-      become: yes
       shell: |
         set -o pipefail
         lines={{ error_lines_count | default(1000) | int }}
@@ -143,8 +142,7 @@
     - debug:
         var: error_logs.stdout_lines
 
-    - name: Read error logs from last N lines (Debian family)
-      become: yes
+    - name: Read error logs from last N lines (Redhat family)
       shell: |
         set -o pipefail
         lines={{ error_lines_count | default(1000) | int }}
