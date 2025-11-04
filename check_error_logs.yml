@@ -124,15 +124,11 @@
           - "OS Family: {{ os_family }}"
           - "Using log file: {{ log_file }}"
 
-    - name: Show generated grep command (for debugging)
-      debug:
-        msg: "grep -iE \"{{ error_keywords | join('|') }}\""
-        
     - name: Read error logs from last N lines (Debian family)
       shell: |
         set -o pipefail
         lines={{ error_lines_count | default(1000) | int }}
-        pattern='{{ error_keywords | join("|") }}'
+        pattern="{{ error_keywords | join('|') }}"
         if [ $lines -gt 0 ]; then
           tail -n $lines {{ log_file }} | tr -d '\r' | grep -iE "$pattern"
         else
