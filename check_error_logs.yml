@@ -31,38 +31,43 @@
         msg: 
           - "Detected OS: {{ os_name }} {{ os_version }}"
           - "Using log file: {{ log_file }}"
+          - "Current user: {{ ansible_user_id }}"
 
-    - name: Check if log file exists
-      stat:
-        path: "{{ log_file }}"
-      become: yes
-      become_method: sudo
-      become_user: root
-      register: log_file_stat
-
-    - name: Fail if log file does not exist
-      fail:
-        msg: "Log file {{ log_file }} does not exist on this system"
-      when: not log_file_stat.stat.exists
-
-    - name: Get recent error logs from messages (CentOS)
+    - name: Try to read error logs without sudo (CentOS)
       shell: |
         if [ {{ error_lines_count | int }} -gt 0 ]; then
           grep -iE "{{ error_keywords | join('|') }}" {{ log_file }} | tail -n {{ error_lines_count }}
         else
           grep -iE "{{ error_keywords | join('|') }}" {{ log_file }}
         fi
-      become: yes
-      become_method: sudo
-      become_user: root
       register: error_logs
-      when: 
-        - log_file_stat.stat.exists
-        - ansible_os_family == "RedHat"
+      when: ansible_os_family == "RedHat"
       changed_when: false
       failed_when: false
 
-    - name: Get recent error logs from syslog (Ubuntu)
+    - name: Try to read error logs without sudo (Ubuntu)
+      shell: |
+        if [ {{ error_lines_count | int }} -gt 0 ]; then
+          grep -iE "{{ error_keywords | join('|') }}" {{ log_file }} | tail -n {{ error_lines_count }}
+        else
+          grep -iE "{{ error_keywords | join('|') }}" {{ log_file }}
+        fi
+      register: error_logs
+      when: ansible_os_family == "Debian"
+      changed_when: false
+      failed_when: false
+
+    - name: Set needs_sudo flag
+      set_fact:
+        needs_sudo: "{{ (error_logs.rc is defined and error_logs.rc != 0) or (error_logs.stdout is not defined) or (error_logs.stdout == '') }}"
+      when: error_logs is defined
+
+    - name: Initialize needs_sudo if not set
+      set_fact:
+        needs_sudo: false
+      when: error_logs is not defined or needs_sudo is not defined
+
+    - name: Read error logs with sudo (CentOS)
       shell: |
         if [ {{ error_lines_count | int }} -gt 0 ]; then
           grep -iE "{{ error_keywords | join('|') }}" {{ log_file }} | tail -n {{ error_lines_count }}
@@ -71,11 +76,26 @@
         fi
       become: yes
       become_method: sudo
-      become_user: root
       register: error_logs
       when: 
-        - log_file_stat.stat.exists
+        - ansible_os_family == "RedHat"
+        - needs_sudo
+      changed_when: false
+      failed_when: false
+
+    - name: Read error logs with sudo (Ubuntu)
+      shell: |
+        if [ {{ error_lines_count | int }} -gt 0 ]; then
+          grep -iE "{{ error_keywords | join('|') }}" {{ log_file }} | tail -n {{ error_lines_count }}
+        else
+          grep -iE "{{ error_keywords | join('|') }}" {{ log_file }}
+        fi
+      become: yes
+      become_method: sudo
+      register: error_logs
+      when: 
         - ansible_os_family == "Debian"
+        - needs_sudo
       changed_when: false
       failed_when: false
 
@@ -106,4 +126,5 @@
           - "  Log file: {{ log_file }}"
           - "  Total error lines found: {{ total_error_lines | default(0) }}"
           - "  Displayed: {{ error_lines_count if error_lines_count > 0 else 'All' }} lines"
+          - "  Privilege escalation: {{ 'Sudo was used' if needs_sudo else 'No sudo needed (user has read permissions)' }}"
 
