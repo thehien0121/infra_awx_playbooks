@@ -12,12 +12,18 @@
       - ERROR
       - failed
       - FAILED
+      - failure
+      - FAILURE
       - critical
       - CRITICAL
       - fatal
       - FATAL
       - exception
       - EXCEPTION
+      - warning
+      - WARNING
+      - exited
+      - EXEC
 
   tasks:
     - name: Detect OS by checking log files (fallback method)
@@ -118,96 +124,39 @@
           - "OS Family: {{ os_family }}"
           - "Using log file: {{ log_file }}"
 
-<<<<<<< HEAD
-<<<<<<< HEAD
     - name: Read error logs from last N lines (RedHat family)
-=======
-    - name: Read error logs (RedHat family)
->>>>>>> parent of 402b516 (updata reading logs)
       shell: |
         if [ {{ error_lines_count | int }} -gt 0 ]; then
-          grep -iE "{{ error_keywords | join('|') }}" {{ log_file }} | tail -n {{ error_lines_count }}
+          tail -n {{ error_lines_count | int }} {{ log_file }} | grep -iE "{{ error_keywords | join('|') }}" 2>/dev/null || echo ""
         else
-          grep -iE "{{ error_keywords | join('|') }}" {{ log_file }}
+          tail -n 1000 {{ log_file }} | grep -iE "{{ error_keywords | join('|') }}" 2>/dev/null || echo ""
         fi
       register: error_logs
-=======
-    - name: Read all error logs (RedHat family)
-      shell: |
-        grep -iE "{{ error_keywords | join('|') }}" {{ log_file }} 2>/dev/null || echo ""
-      register: error_logs_all
->>>>>>> e958bb1dc338cac7a6c731621674cce8256c7ad7
       when: is_redhat_family
       changed_when: false
       failed_when: false
 
-<<<<<<< HEAD
-<<<<<<< HEAD
     - name: Read error logs from last N lines (Debian family)
-=======
-    - name: Read error logs (Debian family)
->>>>>>> parent of 402b516 (updata reading logs)
       shell: |
         if [ {{ error_lines_count | int }} -gt 0 ]; then
-          grep -iE "{{ error_keywords | join('|') }}" {{ log_file }} | tail -n {{ error_lines_count }}
+          tail -n {{ error_lines_count | int }} {{ log_file }} | grep -iE "{{ error_keywords | join('|') }}" 2>/dev/null || echo ""
         else
-          grep -iE "{{ error_keywords | join('|') }}" {{ log_file }}
+          tail -n 1000 {{ log_file }} | grep -iE "{{ error_keywords | join('|') }}" 2>/dev/null || echo ""
         fi
       register: error_logs
-=======
-    - name: Read all error logs (Debian family)
-      shell: |
-        grep -iE "{{ error_keywords | join('|') }}" {{ log_file }} 2>/dev/null || echo ""
-      register: error_logs_all
->>>>>>> e958bb1dc338cac7a6c731621674cce8256c7ad7
       when: is_debian_family
       changed_when: false
       failed_when: false
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-    - name: Process error logs - limit to last N lines or get all
-      shell: |
-        if [ {{ error_lines_count | int }} -gt 0 ]; then
-          echo "{{ error_logs_all.stdout }}" | tail -n {{ error_lines_count | int }}
-        else
-          echo "{{ error_logs_all.stdout }}"
-        fi
-      register: error_logs
-      when: 
-        - error_logs_all is defined
-        - error_logs_all.stdout is defined
-        - error_logs_all.stdout != ""
-      changed_when: false
-      failed_when: false
-
-    - name: Debug - Check total error lines in log file
-      shell: |
-        grep -iE "{{ error_keywords | join('|') }}" {{ log_file }} 2>/dev/null | wc -l
-      register: total_error_count
-      when: error_logs is defined
-      changed_when: false
-      failed_when: false
-
->>>>>>> e958bb1dc338cac7a6c731621674cce8256c7ad7
     - name: Debug - Show grep pattern and result
       debug:
         msg: 
           - "Grep pattern: {{ error_keywords | join('|') }}"
-<<<<<<< HEAD
           - "Reading from last {{ error_lines_count if error_lines_count > 0 else 1000 }} lines"
           - "Error logs found: {{ error_logs.stdout_lines | default([]) | length }} lines"
-=======
-          - "Total error lines in log file: {{ total_error_count.stdout | default('N/A') }}"
-          - "Error logs stdout (first 500 chars): {{ error_logs.stdout | default('empty') | truncate(500) }}"
-          - "Error logs stdout_lines count: {{ error_logs.stdout_lines | default([]) | length }}"
->>>>>>> e958bb1dc338cac7a6c731621674cce8256c7ad7
           - "Error logs rc: {{ error_logs.rc | default('N/A') }}"
       when: error_logs is defined
 
-=======
->>>>>>> parent of 402b516 (updata reading logs)
     - name: Initialize error_logs if not defined
       set_fact:
         error_logs: {"stdout": "", "stdout_lines": [], "rc": 1}
