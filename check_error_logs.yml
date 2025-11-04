@@ -1,7 +1,7 @@
 ---
 - name: Check Error Logs on CentOS/Ubuntu
   hosts: all
-  gather_facts: yes
+  gather_facts: no
 
   vars:
     # Số dòng error cuối cùng muốn hiển thị (để trống hoặc 0 để hiển thị tất cả)
