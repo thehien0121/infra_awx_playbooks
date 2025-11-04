@@ -20,8 +20,6 @@
       - FATAL
       - exception
       - EXCEPTION
-      - warning
-      - WARNING
       - exited
       - EXEC
 
@@ -126,9 +124,7 @@
 
     - name: Debug pattern
       debug:
-        msg:
-          - "Pattern: {{ error_keywords | join('|') }}"
-          - "Command: tail -n {{ error_lines_count | default(1000) | int }} {{ log_file }} | grep -iE '{{ error_keywords | join('|') }}'"
+        msg: "is_debian_family = {{ is_debian_family }}"
 
     - name: Read error logs from last N lines (Debian family)
       shell: |
