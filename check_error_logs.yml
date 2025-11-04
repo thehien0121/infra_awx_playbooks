@@ -129,9 +129,9 @@
         set -o pipefail
         lines={{ error_lines_count | default(1000) | int }}
         if [ $lines -gt 0 ]; then
-          tail -n $lines {{ log_file }} | tr -d '\r' | grep -iE "{{ error_keywords }}"
+          tail -n $lines {{ log_file }} | tr -d '\r' | grep -iE "{{ error_keywords | join('|') }}"
         else
-          tail -n 1000 {{ log_file }} | tr -d '\r' | grep -iE "{{ error_keywords }}"
+          tail -n 1000 {{ log_file }} | tr -d '\r' | grep -iE "{{ error_keywords | join('|') }}"
         fi
       register: error_logs
       when: is_debian_family
@@ -139,26 +139,20 @@
       failed_when: false
       ignore_errors: yes
 
-    - debug:
-        var: error_logs.stdout_lines
-
     - name: Read error logs from last N lines (Redhat family)
       shell: |
         set -o pipefail
         lines={{ error_lines_count | default(1000) | int }}
         if [ $lines -gt 0 ]; then
-          tail -n $lines {{ log_file }} | tr -d '\r' | grep -iE "{{ error_keywords }}"
+          tail -n $lines {{ log_file }} | tr -d '\r' | grep -iE "{{ error_keywords | join('|') }}"
         else
-          tail -n 1000 {{ log_file }} | tr -d '\r' | grep -iE "{{ error_keywords }}"
+          tail -n 1000 {{ log_file }} | tr -d '\r' | grep -iE "{{ error_keywords | join('|') }}"
         fi
       register: error_logs
       when: is_redhat_family
       changed_when: false
       failed_when: false
       ignore_errors: yes
-
-    - debug:
-        var: error_logs.stdout_lines
 
     - name: Debug - Show grep pattern and result
       debug:
