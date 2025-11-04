@@ -131,7 +131,6 @@
 
     - name: Read error logs from last N lines (Debian family)
       shell: |
-        bash -c '
         set -o pipefail
         lines={{ error_lines_count | default(1000) | int }}
         pattern="{{ error_keywords | join('|') }}"
@@ -140,7 +139,7 @@
         else
           tail -n 1000 {{ log_file }} | tr -d "\r" | grep -iE "$pattern"
         fi
-        '
+      executable: /bin/bash
       register: error_logs
       when: is_debian_family
       changed_when: false
