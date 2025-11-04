@@ -142,6 +142,28 @@
       changed_when: false
       failed_when: false
 
+    - name: Initialize error_logs if not defined
+      set_fact:
+        error_logs: {"stdout": "", "stdout_lines": [], "rc": 1}
+      when: error_logs is not defined
+
+    - name: Ensure error_logs has stdout_lines
+      set_fact:
+        error_logs: "{{ error_logs | combine({'stdout_lines': error_logs.stdout_lines | default([])}) }}"
+      when: error_logs is defined
+      failed_when: false
+      changed_when: false
+
+    - name: Count total error lines
+      set_fact:
+        total_error_lines: "{{ (error_logs.stdout_lines | default([])) | length }}"
+      when: error_logs is defined
+
+    - name: Initialize total_error_lines if not set
+      set_fact:
+        total_error_lines: 0
+      when: error_logs is not defined
+
     - name: Display error logs
       debug:
         msg: "{{ error_logs.stdout_lines }}"
@@ -156,11 +178,6 @@
       when: 
         - error_logs is defined
         - (error_logs.stdout_lines is not defined) or (error_logs.stdout_lines | length == 0)
-
-    - name: Count total error lines
-      set_fact:
-        total_error_lines: "{{ error_logs.stdout_lines | length | default(0) }}"
-      when: error_logs is defined
 
     - name: Display summary
       debug:
