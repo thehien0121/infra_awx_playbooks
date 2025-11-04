@@ -118,7 +118,7 @@
           - "OS Family: {{ os_family }}"
           - "Using log file: {{ log_file }}"
 
-    - name: Try to read error logs without sudo (RedHat family)
+    - name: Read error logs (RedHat family)
       shell: |
         if [ {{ error_lines_count | int }} -gt 0 ]; then
           grep -iE "{{ error_keywords | join('|') }}" {{ log_file }} | tail -n {{ error_lines_count }}
@@ -130,7 +130,7 @@
       changed_when: false
       failed_when: false
 
-    - name: Try to read error logs without sudo (Debian family)
+    - name: Read error logs (Debian family)
       shell: |
         if [ {{ error_lines_count | int }} -gt 0 ]; then
           grep -iE "{{ error_keywords | join('|') }}" {{ log_file }} | tail -n {{ error_lines_count }}
@@ -139,48 +139,6 @@
         fi
       register: error_logs
       when: is_debian_family
-      changed_when: false
-      failed_when: false
-
-    - name: Set needs_sudo flag
-      set_fact:
-        needs_sudo: "{{ (error_logs.rc is defined and error_logs.rc != 0) or (error_logs.stdout is not defined) or (error_logs.stdout == '') }}"
-      when: error_logs is defined
-
-    - name: Initialize needs_sudo if not set
-      set_fact:
-        needs_sudo: false
-      when: error_logs is not defined or needs_sudo is not defined
-
-    - name: Read error logs with sudo (RedHat family)
-      shell: |
-        if [ {{ error_lines_count | int }} -gt 0 ]; then
-          grep -iE "{{ error_keywords | join('|') }}" {{ log_file }} | tail -n {{ error_lines_count }}
-        else
-          grep -iE "{{ error_keywords | join('|') }}" {{ log_file }}
-        fi
-      become: yes
-      become_method: sudo
-      register: error_logs
-      when: 
-        - is_redhat_family
-        - needs_sudo
-      changed_when: false
-      failed_when: false
-
-    - name: Read error logs with sudo (Debian family)
-      shell: |
-        if [ {{ error_lines_count | int }} -gt 0 ]; then
-          grep -iE "{{ error_keywords | join('|') }}" {{ log_file }} | tail -n {{ error_lines_count }}
-        else
-          grep -iE "{{ error_keywords | join('|') }}" {{ log_file }}
-        fi
-      become: yes
-      become_method: sudo
-      register: error_logs
-      when: 
-        - is_debian_family
-        - needs_sudo
       changed_when: false
       failed_when: false
 
@@ -211,5 +169,4 @@
           - "  Log file: {{ log_file }}"
           - "  Total error lines found: {{ total_error_lines | default(0) }}"
           - "  Displayed: {{ error_lines_count if error_lines_count > 0 else 'All' }} lines"
-          - "  Privilege escalation: {{ 'Sudo was used' if needs_sudo else 'No sudo needed (user has read permissions)' }}"
 
