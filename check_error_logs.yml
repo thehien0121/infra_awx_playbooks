@@ -1,0 +1,101 @@
+---
+- name: Check Error Logs on CentOS/Ubuntu
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  vars:
+    # Số dòng error cuối cùng muốn hiển thị (để trống hoặc 0 để hiển thị tất cả)
+    error_lines_count: 50
+    # Các từ khóa để tìm error (có thể tùy chỉnh)
+    error_keywords:
+      - error
+      - ERROR
+      - failed
+      - FAILED
+      - critical
+      - CRITICAL
+      - fatal
+      - FATAL
+      - exception
+      - EXCEPTION
+
+  tasks:
+    - name: Detect OS and set log file path
+      set_fact:
+        log_file: "{{ '/var/log/messages' if ansible_os_family == 'RedHat' else '/var/log/syslog' }}"
+        os_name: "{{ ansible_distribution }}"
+        os_version: "{{ ansible_distribution_version }}"
+
+    - name: Display OS information
+      debug:
+        msg: 
+          - "Detected OS: {{ os_name }} {{ os_version }}"
+          - "Using log file: {{ log_file }}"
+
+    - name: Check if log file exists
+      stat:
+        path: "{{ log_file }}"
+      register: log_file_stat
+
+    - name: Fail if log file does not exist
+      fail:
+        msg: "Log file {{ log_file }} does not exist on this system"
+      when: not log_file_stat.stat.exists
+
+    - name: Get recent error logs from messages (CentOS)
+      shell: |
+        if [ {{ error_lines_count | int }} -gt 0 ]; then
+          grep -iE "{{ error_keywords | join('|') }}" {{ log_file }} | tail -n {{ error_lines_count }}
+        else
+          grep -iE "{{ error_keywords | join('|') }}" {{ log_file }}
+        fi
+      register: error_logs
+      when: 
+        - log_file_stat.stat.exists
+        - ansible_os_family == "RedHat"
+      changed_when: false
+      failed_when: false
+
+    - name: Get recent error logs from syslog (Ubuntu)
+      shell: |
+        if [ {{ error_lines_count | int }} -gt 0 ]; then
+          grep -iE "{{ error_keywords | join('|') }}" {{ log_file }} | tail -n {{ error_lines_count }}
+        else
+          grep -iE "{{ error_keywords | join('|') }}" {{ log_file }}
+        fi
+      register: error_logs
+      when: 
+        - log_file_stat.stat.exists
+        - ansible_os_family == "Debian"
+      changed_when: false
+      failed_when: false
+
+    - name: Display error logs
+      debug:
+        msg: "{{ error_logs.stdout_lines }}"
+      when: 
+        - error_logs is defined
+        - error_logs.stdout_lines is defined
+        - error_logs.stdout_lines | length > 0
+
+    - name: Show message if no errors found
+      debug:
+        msg: "✅ No error logs found in {{ log_file }}"
+      when: 
+        - error_logs is defined
+        - (error_logs.stdout_lines is not defined) or (error_logs.stdout_lines | length == 0)
+
+    - name: Count total error lines
+      set_fact:
+        total_error_lines: "{{ error_logs.stdout_lines | length | default(0) }}"
+      when: error_logs is defined
+
+    - name: Display summary
+      debug:
+        msg: 
+          - "📊 Summary:"
+          - "  Log file: {{ log_file }}"
+          - "  Total error lines found: {{ total_error_lines | default(0) }}"
+          - "  Displayed: {{ error_lines_count if error_lines_count > 0 else 'All' }} lines"
+
