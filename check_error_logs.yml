@@ -12,12 +12,18 @@
       - ERROR
       - failed
       - FAILED
+      - failure
+      - FAILURE
       - critical
       - CRITICAL
       - fatal
       - FATAL
       - exception
       - EXCEPTION
+      - warning
+      - WARNING
+      - exited
+      - EXEC
 
   tasks:
     - name: Detect OS by checking log files (fallback method)
@@ -118,29 +124,38 @@
           - "OS Family: {{ os_family }}"
           - "Using log file: {{ log_file }}"
 
-    - name: Read error logs (RedHat family)
+    - name: Read error logs from last N lines (RedHat family)
       shell: |
         if [ {{ error_lines_count | int }} -gt 0 ]; then
-          grep -iE "{{ error_keywords | join('|') }}" {{ log_file }} | tail -n {{ error_lines_count }}
+          tail -n {{ error_lines_count | int }} {{ log_file }} | grep -iE "{{ error_keywords | join('|') }}" 2>/dev/null || echo ""
         else
-          grep -iE "{{ error_keywords | join('|') }}" {{ log_file }}
+          tail -n 1000 {{ log_file }} | grep -iE "{{ error_keywords | join('|') }}" 2>/dev/null || echo ""
         fi
       register: error_logs
       when: is_redhat_family
       changed_when: false
       failed_when: false
 
-    - name: Read error logs (Debian family)
+    - name: Read error logs from last N lines (Debian family)
       shell: |
         if [ {{ error_lines_count | int }} -gt 0 ]; then
-          grep -iE "{{ error_keywords | join('|') }}" {{ log_file }} | tail -n {{ error_lines_count }}
+          tail -n {{ error_lines_count | int }} {{ log_file }} | grep -iE "{{ error_keywords | join('|') }}" 2>/dev/null || echo ""
         else
-          grep -iE "{{ error_keywords | join('|') }}" {{ log_file }}
+          tail -n 1000 {{ log_file }} | grep -iE "{{ error_keywords | join('|') }}" 2>/dev/null || echo ""
         fi
       register: error_logs
       when: is_debian_family
       changed_when: false
       failed_when: false
+
+    - name: Debug - Show grep pattern and result
+      debug:
+        msg: 
+          - "Grep pattern: {{ error_keywords | join('|') }}"
+          - "Reading from last {{ error_lines_count if error_lines_count > 0 else 1000 }} lines"
+          - "Error logs found: {{ error_logs.stdout_lines | default([]) | length }} lines"
+          - "Error logs rc: {{ error_logs.rc | default('N/A') }}"
+      when: error_logs is defined
 
     - name: Initialize error_logs if not defined
       set_fact:
