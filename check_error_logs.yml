@@ -123,6 +123,7 @@
           - "Detected OS: {{ os_name }} ({{ os_id }}) {{ os_version }}"
           - "OS Family: {{ os_family }}"
           - "Using log file: {{ log_file }}"
+
     - name: Debug pattern
       debug:
         msg:
@@ -139,7 +140,8 @@
         else
           tail -n 1000 {{ log_file }} | tr -d "\r" | grep -iE "$pattern"
         fi
-      executable: /bin/bash
+      args:
+        executable: /bin/bash
       register: error_logs
       when: is_debian_family
       changed_when: false
