@@ -21,7 +21,14 @@
       - exception
       - EXCEPTION
       - exited
-      - EXEC
+      - status=[0-9]+/EXEC
+
+    # Các nguồn/service cần loại trừ khỏi kết quả lỗi (không kiểm tra)
+    exclude_error_sources:
+      - nrpe
+      - nrpe.service
+      - setroubleshoot
+      - setroubleshootd
 
   tasks:
     - name: Detect OS by checking log files (fallback method)
@@ -127,10 +134,19 @@
         set -o pipefail
         lines={{ error_lines_count | default(1000) | int }}
         pattern="{{ error_keywords | join('|') }}"
+        exclude_pattern="{{ (exclude_error_sources | default([])) | join('|') }}"
         if [ $lines -gt 0 ]; then
-          grep -iE "$pattern" {{ log_file }} | tr -d "\r" | tail -n $lines
+          if [ -n "$exclude_pattern" ]; then
+            grep -iE "$pattern" {{ log_file }} | grep -viE "$exclude_pattern" | tr -d "\r" | tail -n $lines
+          else
+            grep -iE "$pattern" {{ log_file }} | tr -d "\r" | tail -n $lines
+          fi
         else
-          grep -iE "$pattern" {{ log_file }} | tr -d "\r" | tail -n 1000
+          if [ -n "$exclude_pattern" ]; then
+            grep -iE "$pattern" {{ log_file }} | grep -viE "$exclude_pattern" | tr -d "\r" | tail -n 1000
+          else
+            grep -iE "$pattern" {{ log_file }} | tr -d "\r" | tail -n 1000
+          fi
         fi
       args:
         executable: /bin/bash
@@ -147,10 +163,19 @@
         set -o pipefail
         lines={{ error_lines_count | default(1000) | int }}
         pattern="{{ error_keywords | join('|') }}"
+        exclude_pattern="{{ (exclude_error_sources | default([])) | join('|') }}"
         if [ $lines -gt 0 ]; then
-          grep -iE "$pattern" {{ log_file }} | tr -d '\r' | tail -n $lines
+          if [ -n "$exclude_pattern" ]; then
+            grep -iE "$pattern" {{ log_file }} | grep -viE "$exclude_pattern" | tr -d '\r' | tail -n $lines
+          else
+            grep -iE "$pattern" {{ log_file }} | tr -d '\r' | tail -n $lines
+          fi
         else
-          grep -iE "$pattern" {{ log_file }} | tr -d '\r' | tail -n 1000
+          if [ -n "$exclude_pattern" ]; then
+            grep -iE "$pattern" {{ log_file }} | grep -viE "$exclude_pattern" | tr -d '\r' | tail -n 1000
+          else
+            grep -iE "$pattern" {{ log_file }} | tr -d '\r' | tail -n 1000
+          fi
         fi
       args:
         executable: /bin/bash
@@ -165,11 +190,20 @@
         set -o pipefail
         lines={{ error_lines_count | default(1000) | int }}
         pattern="{{ error_keywords | join('|') }}"
+        exclude_pattern="{{ (exclude_error_sources | default([])) | join('|') }}"
         if command -v journalctl >/dev/null 2>&1; then
           if [ $lines -gt 0 ]; then
-            journalctl --no-pager -o short-iso -a | grep -iE "$pattern" | tail -n $lines
+            if [ -n "$exclude_pattern" ]; then
+              journalctl --no-pager -o short-iso -a | grep -iE "$pattern" | grep -viE "$exclude_pattern" | tail -n $lines
+            else
+              journalctl --no-pager -o short-iso -a | grep -iE "$pattern" | tail -n $lines
+            fi
           else
-            journalctl --no-pager -o short-iso -a | grep -iE "$pattern" | tail -n 1000
+            if [ -n "$exclude_pattern" ]; then
+              journalctl --no-pager -o short-iso -a | grep -iE "$pattern" | grep -viE "$exclude_pattern" | tail -n 1000
+            else
+              journalctl --no-pager -o short-iso -a | grep -iE "$pattern" | tail -n 1000
+            fi
           fi
         else
           # journalctl not available
