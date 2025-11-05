@@ -128,9 +128,9 @@
         lines={{ error_lines_count | default(1000) | int }}
         pattern="{{ error_keywords | join('|') }}"
         if [ $lines -gt 0 ]; then
-          tail -n $lines {{ log_file }} | tr -d "\r" | grep -iE "$pattern"
+          grep -iE "$pattern" {{ log_file }} | tr -d "\r" | tail -n $lines
         else
-          tail -n 1000 {{ log_file }} | tr -d "\r" | grep -iE "$pattern"
+          grep -iE "$pattern" {{ log_file }} | tr -d "\r" | tail -n 1000
         fi
       args:
         executable: /bin/bash
@@ -146,10 +146,11 @@
       shell: |
         set -o pipefail
         lines={{ error_lines_count | default(1000) | int }}
+        pattern="{{ error_keywords | join('|') }}"
         if [ $lines -gt 0 ]; then
-          tail -n $lines {{ log_file }} | tr -d '\r' | grep -iE "{{ error_keywords | join('|') }}"
+          grep -iE "$pattern" {{ log_file }} | tr -d '\r' | tail -n $lines
         else
-          tail -n 1000 {{ log_file }} | tr -d '\r' | grep -iE "{{ error_keywords | join('|') }}"
+          grep -iE "$pattern" {{ log_file }} | tr -d '\r' | tail -n 1000
         fi
       args:
         executable: /bin/bash
@@ -159,12 +160,43 @@
       failed_when: false
       ignore_errors: yes
 
+    - name: Read error logs via journalctl (Debian family fallback)
+      shell: |
+        set -o pipefail
+        lines={{ error_lines_count | default(1000) | int }}
+        pattern="{{ error_keywords | join('|') }}"
+        if command -v journalctl >/dev/null 2>&1; then
+          if [ $lines -gt 0 ]; then
+            journalctl --no-pager -o short-iso -a | grep -iE "$pattern" | tail -n $lines
+          else
+            journalctl --no-pager -o short-iso -a | grep -iE "$pattern" | tail -n 1000
+          fi
+        else
+          # journalctl not available
+          exit 0
+        fi
+      args:
+        executable: /bin/bash
+      register: error_logs_journal
+      when:
+        - is_debian_family
+        - error_logs_debian is defined
+        - (error_logs_debian.stdout_lines | default([]) | length) == 0
+      changed_when: false
+      failed_when: false
+      ignore_errors: yes
+
     - name: Merge results into unified variable
       set_fact:
-        error_logs: "{{ 
-          error_logs_redhat if error_logs_redhat is defined 
-          else (error_logs_debian if error_logs_debian is defined 
-          else {'stdout': '', 'stdout_lines': []}) 
+        error_logs: "{{
+          error_logs_redhat if (error_logs_redhat is defined and (error_logs_redhat.stdout_lines | default([]) | length) > 0)
+          else (
+            error_logs_debian if (error_logs_debian is defined and (error_logs_debian.stdout_lines | default([]) | length) > 0)
+            else (
+              error_logs_journal if (error_logs_journal is defined)
+              else {'stdout': '', 'stdout_lines': []}
+            )
+          )
         }}"
 
     - name: Debug - Show grep pattern and result
