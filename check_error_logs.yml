@@ -4,7 +4,7 @@
   gather_facts: no
 
   vars:
-    # Số dòng error cuối cùng muốn hiển thị (để trống hoặc 0 để hiển thị tất cả)
+    # Số dòng error cuối cùng muốn hiển thị (để trống hoặc 0 sẽ lấy 1000 dòng gần nhất)
     error_lines_count: 50
     # Các từ khóa để tìm error (có thể tùy chỉnh)
     error_keywords:
@@ -122,10 +122,6 @@
           - "OS Family: {{ os_family }}"
           - "Using log file: {{ log_file }}"
 
-    - name: Debug pattern
-      debug:
-        msg: "is_debian_family = {{ is_debian_family }}"
-
     - name: Read error logs from last N lines (Debian family)
       shell: |
         set -o pipefail
@@ -138,11 +134,12 @@
         fi
       args:
         executable: /bin/bash
-      register: error_logs
+      register: error_logs_debian
       when: is_debian_family
       changed_when: false
       failed_when: false
       ignore_errors: yes
+
     
 
     - name: Read error logs from last N lines (Redhat family)
@@ -154,11 +151,21 @@
         else
           tail -n 1000 {{ log_file }} | tr -d '\r' | grep -iE "{{ error_keywords | join('|') }}"
         fi
-      register: error_logs
+      args:
+        executable: /bin/bash
+      register: error_logs_redhat 
       when: is_redhat_family
       changed_when: false
       failed_when: false
       ignore_errors: yes
+
+    - name: Merge results into unified variable
+      set_fact:
+        error_logs: "{{ 
+          error_logs_redhat if error_logs_redhat is defined 
+          else (error_logs_debian if error_logs_debian is defined 
+          else {'stdout': '', 'stdout_lines': []}) 
+        }}"
 
     - name: Debug - Show grep pattern and result
       debug:
@@ -212,5 +219,5 @@
           - "📊 Summary:"
           - "  Log file: {{ log_file }}"
           - "  Total error lines found: {{ total_error_lines | default(0) }}"
-          - "  Displayed: {{ error_lines_count if error_lines_count > 0 else 'All' }} lines"
+          - "  Displayed: {{ error_lines_count if error_lines_count > 0 else 1000 }} lines"
 
