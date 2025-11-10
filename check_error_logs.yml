@@ -154,7 +154,7 @@
       when: is_debian_family
       changed_when: false
       failed_when: false
-      ignore_errors: yes
+      ignore_errors: no
 
     
 
@@ -183,7 +183,7 @@
       when: is_redhat_family
       changed_when: false
       failed_when: false
-      ignore_errors: yes
+      ignore_errors: no
 
     - name: Read error logs via journalctl (Debian family fallback)
       shell: |
