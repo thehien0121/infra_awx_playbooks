@@ -114,13 +114,14 @@
 
     - name: Determine OS family
       set_fact:
-        is_redhat_family: "{{ os_id in ['rhel', 'centos', 'rocky', 'almalinux', 'fedora', 'oracle', 'redhat'] or 'redhat' in (os_id | default('')) or os_detect_by_log.stdout | default('') == 'redhat' }}"
-        is_debian_family: "{{ os_id in ['ubuntu', 'debian'] or os_detect_by_log.stdout | default('') == 'debian' }}"
+        # Prefer /etc/os-release result; only fall back to log-based heuristic when os_id is unknown
+        is_debian_family: "{{ (os_id | default('') | lower) in ['debian', 'ubuntu'] or (((os_id | default('') | lower) in ['', 'unknown']) and (os_detect_by_log.stdout | default('') == 'debian')) }}"
+        is_redhat_family: "{{ (os_id | default('') | lower) in ['rhel', 'centos', 'rocky', 'almalinux', 'fedora', 'oracle', 'redhat'] or (((os_id | default('') | lower) in ['', 'unknown']) and (os_detect_by_log.stdout | default('') == 'redhat')) }}"
 
     - name: Set log file path based on OS
       set_fact:
-        log_file: "{{ '/var/log/messages' if is_redhat_family else '/var/log/syslog' }}"
-        os_family: "{{ 'RedHat' if is_redhat_family else ('Debian' if is_debian_family else 'Unknown') }}"
+        os_family: "{{ 'Debian' if is_debian_family else ('RedHat' if is_redhat_family else 'Unknown') }}"
+        log_file: "{{ '/var/log/syslog' if os_family == 'Debian' else '/var/log/messages' }}"
 
     - name: Display OS information
       debug:
