@@ -121,7 +121,7 @@
     - name: Set log file path based on OS
       set_fact:
         os_family: "{{ 'Debian' if is_debian_family else ('RedHat' if is_redhat_family else 'Unknown') }}"
-        log_file: "{{ '/var/log/syslog' if os_family == 'Debian' else '/var/log/messages' }}"
+        log_file: "{{ '/var/log/syslog' if is_debian_family else ('/var/log/messages' if is_redhat_family else '/var/log/syslog') }}"
 
     - name: Display OS information
       debug:
