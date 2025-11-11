@@ -7,12 +7,26 @@
     target_hosts: "{{ groups['all'] | default([]) | difference(['localhost']) }}"
 
   tasks:
-    - name: ICMP ping each host from controller
-      ansible.builtin.command: "ping -c 1 -W 1 {{ item }}"
-      loop: "{{ target_hosts }}"
-      register: icmp_ping_results
+    - name: Locate ping binary on execution host
+      ansible.builtin.command: "command -v ping"
+      register: ping_path
       changed_when: false
       failed_when: false
+
+    - name: ICMP ping each host
+      ansible.builtin.shell: "ping -c 1 -W 1 {{ item }}"
+      loop: "{{ target_hosts }}"
+      register: icmp_ping_results
+      when: ping_path.rc == 0
+      changed_when: false
+      failed_when: false
+
+    - name: Inform when ping is not available on execution host
+      ansible.builtin.debug:
+        msg: >-
+          'ping' command not found on the execution host.
+          Install iputils and ensure CAP_NET_RAW in the execution environment.
+      when: ping_path.rc != 0
 
     - name: Show ICMP ping summary
       ansible.builtin.debug:
