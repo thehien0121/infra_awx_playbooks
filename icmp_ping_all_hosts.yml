@@ -28,7 +28,15 @@
           Install iputils and ensure CAP_NET_RAW in the execution environment.
       when: ping_path.rc != 0
 
+    - name: Initialize empty results when ping is not available
+      ansible.builtin.set_fact:
+        icmp_ping_results: {"results": []}
+      when: ping_path.rc != 0
+
     - name: Show ICMP ping summary
       ansible.builtin.debug:
         msg: "{{ item.item }} -> {{ 'reachable' if item.rc == 0 else 'unreachable' }}"
       loop: "{{ icmp_ping_results.results | default([]) }}"
+      when:
+        - icmp_ping_results is defined
+        - icmp_ping_results.results is defined
