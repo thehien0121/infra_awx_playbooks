@@ -1,0 +1,20 @@
+---
+- name: ICMP ping all hosts from controller
+  hosts: localhost
+  gather_facts: no
+
+  vars:
+    target_hosts: "{{ groups['all'] | default([]) | difference(['localhost']) }}"
+
+  tasks:
+    - name: ICMP ping each host from controller
+      ansible.builtin.command: "ping -c 1 -W 1 {{ item }}"
+      loop: "{{ target_hosts }}"
+      register: icmp_ping_results
+      changed_when: false
+      failed_when: false
+
+    - name: Show ICMP ping summary
+      ansible.builtin.debug:
+        msg: "{{ item.item }} -> {{ 'reachable' if item.rc == 0 else 'unreachable' }}"
+      loop: "{{ icmp_ping_results.results | default([]) }}"
