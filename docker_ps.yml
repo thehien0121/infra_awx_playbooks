@@ -1,0 +1,55 @@
+---
+- name: Run docker ps on Linux hosts
+  hosts: all
+  gather_facts: no
+
+  vars:
+    # Include stopped containers as well
+    docker_ps_all: false
+    # Provide a custom --format string, e.g. "{{.ID}} {{.Names}} {{.Status}}"
+    docker_ps_format: ""
+    # Optionally hardcode docker binary path if not in PATH (e.g. /usr/bin/docker)
+    docker_bin: ""
+    # Use sudo to run docker commands (recommended unless user is in docker group)
+    use_sudo: true
+
+  tasks:
+    - name: Locate docker binary in PATH
+      ansible.builtin.command: "command -v docker"
+      register: docker_path
+      changed_when: false
+      failed_when: false
+
+    - name: Resolve docker executable
+      ansible.builtin.set_fact:
+        docker_exec: "{{ docker_bin if (docker_bin | length) > 0 else (docker_path.stdout_lines[0] | default('docker')) }}"
+
+    - name: Build argv for docker ps
+      ansible.builtin.set_fact:
+        docker_ps_argv: >-
+          {{
+            [docker_exec, 'ps']
+            + (docker_ps_all | ternary(['-a'], []))
+            + ((docker_ps_format | length > 0) | ternary(['--format', docker_ps_format], []))
+          }}
+
+    - name: Run docker ps
+      ansible.builtin.command:
+        argv: "{{ docker_ps_argv }}"
+      register: docker_ps_out
+      changed_when: false
+      failed_when: false
+      become: "{{ use_sudo }}"
+      become_method: sudo
+      when: (docker_path.rc | default(1)) == 0 or (docker_bin | length) > 0
+
+    - name: Docker not found, skipping
+      ansible.builtin.debug:
+        msg: "Docker not found on host. Skipping docker ps."
+      when: (docker_path.rc | default(1)) != 0 and (docker_bin | length) == 0
+
+    - name: Show docker ps output
+      ansible.builtin.debug:
+        msg: "{{ docker_ps_out.stdout_lines | default([]) }}"
+
+
