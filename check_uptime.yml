@@ -26,3 +26,4 @@
       debug:
         msg: "Các host không kết nối được: {{ unreachable_hosts | join(', ') }}"
       when: unreachable_hosts | length > 0
+
