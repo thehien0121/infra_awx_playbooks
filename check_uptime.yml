@@ -2,11 +2,27 @@
 - name: Check uptime on all servers
   hosts: all
   gather_facts: no
+  ignore_unreachable: yes
+  vars:
+    ansible_ssh_timeout: 10
   tasks:
     - name: Get server uptime
       command: uptime
       register: uptime_result
+      ignore_errors: yes
+      changed_when: false
+      failed_when: false
  
     - name: Show server uptime
       debug:
         var: uptime_result.stdout
+      when: uptime_result is defined and uptime_result.stdout is defined
+
+    - name: Report unreachable hosts
+      run_once: true
+      delegate_to: localhost
+      vars:
+        unreachable_hosts: "{{ ansible_play_hosts_all | difference(ansible_play_hosts) }}"
+      debug:
+        msg: "Các host không kết nối được: {{ unreachable_hosts | join(', ') }}"
+      when: unreachable_hosts | length > 0
