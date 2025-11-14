@@ -33,15 +33,37 @@
             + ((docker_ps_format | length > 0) | ternary(['--format', docker_ps_format], []))
           }}
 
+    - name: Check sudo nopasswd availability
+      ansible.builtin.command: "sudo -n -v"
+      register: sudo_check
+      changed_when: false
+      failed_when: false
+      when: use_sudo
+
+    - name: Decide effective use of sudo
+      ansible.builtin.set_fact:
+        effective_use_sudo: "{{ use_sudo and ((sudo_check.rc | default(1)) == 0) }}"
+      when: use_sudo
+
+    - name: Default effective_use_sudo when sudo not requested
+      ansible.builtin.set_fact:
+        effective_use_sudo: false
+      when: not use_sudo
+
     - name: Run docker ps
       ansible.builtin.command:
         argv: "{{ docker_ps_argv }}"
       register: docker_ps_out
       changed_when: false
       failed_when: false
-      become: "{{ use_sudo }}"
+      become: "{{ effective_use_sudo | default(false) }}"
       become_method: sudo
       when: (docker_path.rc | default(1)) == 0 or (docker_bin | length) > 0
+
+    - name: Info when sudo requested but not passwordless
+      ansible.builtin.debug:
+        msg: "sudo requires password; running docker ps without sudo"
+      when: use_sudo and not (effective_use_sudo | default(false))
 
     - name: Docker not found, skipping
       ansible.builtin.debug:
