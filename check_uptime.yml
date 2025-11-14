@@ -1,34 +1,53 @@
 ---
-- name: Check uptime on all servers
-  hosts: all
+- name: Build reachable host group and report unreachable
+  hosts: localhost
   gather_facts: no
-  ignore_unreachable: yes
   vars:
-    ansible_ssh_timeout: 10
+    ssh_port: 22
+    tcp_timeout: 5
+    inventory_targets: "{{ groups['all'] | difference(['localhost']) }}"
   tasks:
-    - name: Check connectivity to host
-      wait_for_connection:
-        timeout: 10
+    - name: Probe SSH port from controller to each host
+      wait_for:
+        host: "{{ item }}"
+        port: "{{ ssh_port }}"
+        timeout: "{{ tcp_timeout }}"
         sleep: 1
         delay: 0
-      register: conn_check
+      loop: "{{ inventory_targets }}"
+      register: tcp_probe
       ignore_errors: yes
       changed_when: false
 
-    - name: Report host cannot connect
-      delegate_to: localhost
-      debug:
-        msg: "Host {{ inventory_hostname }} không kết nối được"
-      when: conn_check is failed
+    - name: Add reachable hosts to dynamic group
+      add_host:
+        name: "{{ item.item }}"
+        groups: reachable
+      loop: "{{ tcp_probe.results | selectattr('failed', '!=', true) | list }}"
 
+    - name: Collect unreachable hosts list
+      set_fact:
+        unreachable_hosts: "{{ tcp_probe.results | selectattr('failed', '==', true) | map(attribute='item') | list }}"
+      changed_when: false
+
+    - name: Report unreachable hosts
+      when: unreachable_hosts | length > 0
+      debug:
+        msg: "Các host không kết nối được: {{ unreachable_hosts | join(', ') }}"
+
+- name: Check uptime on reachable hosts
+  hosts: reachable
+  gather_facts: no
+  vars:
+    ansible_ssh_timeout: 10
+  tasks:
     - name: Get server uptime
       command: uptime
       register: uptime_result
       ignore_errors: yes
       changed_when: false
       failed_when: false
-      when: conn_check is not failed
- 
+
     - name: Show server uptime
       debug:
         var: uptime_result.stdout
