@@ -6,24 +6,32 @@
   vars:
     ansible_ssh_timeout: 10
   tasks:
+    - name: Check connectivity to host
+      wait_for_connection:
+        timeout: 10
+        sleep: 1
+        delay: 0
+      register: conn_check
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Report host cannot connect
+      delegate_to: localhost
+      debug:
+        msg: "Host {{ inventory_hostname }} không kết nối được"
+      when: conn_check is failed
+
     - name: Get server uptime
       command: uptime
       register: uptime_result
       ignore_errors: yes
       changed_when: false
       failed_when: false
+      when: conn_check is not failed
  
     - name: Show server uptime
       debug:
         var: uptime_result.stdout
       when: uptime_result is defined and uptime_result.stdout is defined
 
-    - name: Report unreachable hosts
-      run_once: true
-      delegate_to: localhost
-      vars:
-        unreachable_hosts: "{{ ansible_play_hosts_all | difference(ansible_play_hosts) }}"
-      debug:
-        msg: "Các host không kết nối được: {{ unreachable_hosts | join(', ') }}"
-      when: unreachable_hosts | length > 0
 
