@@ -73,5 +73,17 @@
     - name: Show docker ps output
       ansible.builtin.debug:
         msg: "{{ docker_ps_out.stdout_lines | default([]) }}"
+      when:
+        - docker_ps_out is defined
+        - (docker_ps_out.rc | default(0)) == 0
+
+    - name: Show docker ps error (stderr)
+      ansible.builtin.debug:
+        msg:
+          - "docker ps failed (rc={{ docker_ps_out.rc | default('N/A') }})"
+          - "{{ docker_ps_out.stderr | default('') }}"
+      when:
+        - docker_ps_out is defined
+        - (docker_ps_out.rc | default(0)) != 0
 
 
