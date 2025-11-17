@@ -11,7 +11,7 @@
     # Optionally hardcode docker binary path if not in PATH (e.g. /usr/bin/docker)
     docker_bin: ""
     # Use sudo to run docker commands (recommended unless user is in docker group)
-    use_sudo: true
+    use_sudo: false
 
   tasks:
     - name: Locate docker binary in PATH
