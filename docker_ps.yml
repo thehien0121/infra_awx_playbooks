@@ -15,14 +15,46 @@
 
   tasks:
     - name: Locate docker binary in PATH
-      ansible.builtin.shell: "set -o pipefail; command -v docker 2>/dev/null || which docker 2>/dev/null"
+      ansible.builtin.shell: "command -v docker 2>/dev/null || which docker 2>/dev/null"
       register: docker_path
+      changed_when: false
+      failed_when: false
+      environment:
+        PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+    - name: Check common docker paths
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /usr/bin/docker
+        - /usr/local/bin/docker
+        - /bin/docker
+        - /usr/sbin/docker
+        - /sbin/docker
+      register: docker_candidates_stats
       changed_when: false
       failed_when: false
 
     - name: Resolve docker executable
       ansible.builtin.set_fact:
-        docker_exec: "{{ docker_bin if (docker_bin | length) > 0 else ((docker_path.stdout | trim) | default('docker', true)) }}"
+        docker_exec: >-
+          {{
+            docker_bin if (docker_bin | length) > 0 else
+            (
+              (docker_path.stdout | trim)
+              if ((docker_path.rc | default(1)) == 0 and (docker_path.stdout | trim | length) > 0)
+              else
+              (
+                docker_candidates_stats.results
+                | selectattr('stat.exists', 'defined')
+                | selectattr('stat.exists')
+                | map(attribute='item')
+                | list
+                | first
+              )
+            )
+            | default('docker', true)
+          }}
 
     - name: Build argv for docker ps
       ansible.builtin.set_fact:
@@ -58,7 +90,7 @@
       failed_when: false
       become: "{{ effective_use_sudo | default(false) }}"
       become_method: sudo
-      when: (docker_path.rc | default(1)) == 0 or (docker_bin | length) > 0
+      when: (docker_exec | length) > 0
 
     - name: Info when sudo requested but not passwordless
       ansible.builtin.debug:
@@ -67,8 +99,10 @@
 
     - name: Docker not found, skipping
       ansible.builtin.debug:
-        msg: "Docker not found on host. Skipping docker ps."
-      when: (docker_path.rc | default(1)) != 0 and (docker_bin | length) == 0
+        msg: "Docker not found on host (PATH and common locations). Skipping docker ps."
+      when:
+        - docker_ps_out is not defined
+        - (docker_exec | default('') | length) == 0 or docker_exec == 'docker'
 
     - name: Show docker ps output
       ansible.builtin.debug:
