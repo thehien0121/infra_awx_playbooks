@@ -15,14 +15,14 @@
 
   tasks:
     - name: Locate docker binary in PATH
-      ansible.builtin.command: "command -v docker"
+      ansible.builtin.shell: "set -o pipefail; command -v docker 2>/dev/null || which docker 2>/dev/null"
       register: docker_path
       changed_when: false
       failed_when: false
 
     - name: Resolve docker executable
       ansible.builtin.set_fact:
-        docker_exec: "{{ docker_bin if (docker_bin | length) > 0 else (docker_path.stdout_lines[0] | default('docker')) }}"
+        docker_exec: "{{ docker_bin if (docker_bin | length) > 0 else ((docker_path.stdout | trim) | default('docker', true)) }}"
 
     - name: Build argv for docker ps
       ansible.builtin.set_fact:
