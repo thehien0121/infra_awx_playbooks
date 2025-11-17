@@ -12,16 +12,16 @@
       - ERROR
       - failed
       - FAILED
-      - failure
-      - FAILURE
-      - critical
-      - CRITICAL
-      - fatal
-      - FATAL
-      - exception
-      - EXCEPTION
-      - exited
-      - status=[0-9]+/EXEC
+    #  - failure
+    #  - FAILURE
+    #  - critical
+    #  - CRITICAL
+    #  - fatal
+    #  - FATAL
+    #  - exception
+    #  - EXCEPTION
+    #  - exited
+    #  - status=[0-9]+/EXEC
 
     # Các nguồn/service cần loại trừ khỏi kết quả lỗi (không kiểm tra)
     exclude_error_sources:
